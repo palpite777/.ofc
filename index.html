@@ -2,9 +2,13 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Palpite Premiado - Plataforma Gamer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PalpitePremiado">
+    <meta name="theme-color" content="#030712">
+    
+    <title>PalpitePremiado - Plataforma Gamer</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,6 +19,58 @@
 
     <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        input, textarea, button {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #root {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+        main {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+        nav {
+            flex-shrink: 0;
+        }
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+        /* Remove input focus outline */
+        input:focus, textarea:focus {
+            outline: none;
+        }
+        /* Remove default button styles */
+        button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+    </style>
 </head>
 
 <body class="bg-gray-950 text-gray-100 font-sans antialiased">
@@ -23,30 +79,55 @@
 
     <script type="text/babel">
 
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useCallback, useRef } = React;
 
+        // ========================================================
+        // STORAGE MANAGER
+        // ========================================================
+        const StorageManager = {
+            save: (key, data) => {
+                try {
+                    localStorage.setItem(`palpite_${key}`, JSON.stringify(data));
+                } catch (e) {
+                    console.warn("Storage full or disabled:", e);
+                }
+            },
+            load: (key, defaultValue) => {
+                try {
+                    const item = localStorage.getItem(`palpite_${key}`);
+                    return item ? JSON.parse(item) : defaultValue;
+                } catch (e) {
+                    console.warn("Load error:", e);
+                    return defaultValue;
+                }
+            },
+            clear: () => {
+                try {
+                    const keys = Object.keys(localStorage);
+                    keys.forEach(key => {
+                        if (key.startsWith("palpite_")) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+                } catch (e) {
+                    console.warn("Clear error:", e);
+                }
+            }
+        };
+
+        // ========================================================
+        // MAIN APP
+        // ========================================================
         function App() {
 
-            /* =========================================================
-               ESTADOS PRINCIPAIS
-            ========================================================= */
-
+            // Estados Principais
             const [abaAtiva, setAbaAtiva] = useState("home");
-
-            const [saldo, setSaldo] = useState(1000);
-
-            const [historicoPalpites, setHistoricoPalpites] = useState([]);
-
-            const [missoesConcluidas, setMissoesConcluidas] = useState([]);
-
-            const [clicouNoLinkCPA, setClicouNoLinkCPA] = useState({});
-
-
-            /* =========================================================
-               PALPITES
-            ========================================================= */
-
-            const [palpites, setPalpites] = useState([
+            const [saldo, setSaldo] = useState(() => StorageManager.load("saldo", 1000));
+            const [historicoPalpites, setHistoricoPalpites] = useState(() => StorageManager.load("historico", []));
+            const [missoesConcluidas, setMissoesConcluidas] = useState(() => StorageManager.load("missoes_concluidas", []));
+            const [clicouNoLinkCPA, setClicouNoLinkCPA] = useState(() => StorageManager.load("links_clicados", {}));
+            
+            const [palpites, setPalpites] = useState(() => StorageManager.load("palpites", [
                 {
                     id: 1,
                     pergunta: "Quem vence o clássico de futebol hoje à noite?",
@@ -65,205 +146,46 @@
                     status: "Ativo",
                     vencedor: null
                 }
-            ]);
+            ]));
 
-
-            /* =========================================================
-               MISSÕES
-            ========================================================= */
-
-            const [missoes, setMissoes] = useState([
+            const [missoes, setMissoes] = useState(() => StorageManager.load("missoes", [
                 {
                     id: 1,
-                    titulo: "Abra uma Conta Digital Gratuita",
-                    descricao:
-                        "Clique no link parceiro, faça seu cadastro rápido sem taxas e valide sua conta.",
+                    titulo: "Abra uma Conta Digital",
+                    descricao: "Clique no link, faça seu cadastro rápido e valide sua conta.",
                     link: "https://bancoparceiro.com",
                     recompensa: 500,
                     status: "Ativo"
                 },
                 {
                     id: 2,
-                    titulo: "Assista o Vídeo do Canal Parceiro",
-                    descricao:
-                        "Veja o vídeo de 30 segundos sobre finanças e aprenda a investir o seu troco.",
+                    titulo: "Assista Vídeo do Canal",
+                    descricao: "Veja 30 segundos sobre finanças e aprenda a investir.",
                     link: "https://youtube.com",
                     recompensa: 200,
                     status: "Ativo"
                 }
-            ]);
+            ]));
 
-
-            /* =========================================================
-               AVISOS
-            ========================================================= */
-
-            const [avisos, setAvisos] = useState([
+            const [avisos, setAvisos] = useState(() => StorageManager.load("avisos", [
                 {
                     id: 1,
-                    titulo: "Seja bem-vindo à nova era de palpites!",
-                    conteudo:
-                        "Dê palpites gratuitos diariamente nas enquetes do mural, acumule moedas e troque por prêmios reais no fim do mês.",
+                    titulo: "Bem-vindo à PalpitePremiado!",
+                    conteudo: "Dê palpites diários, acumule moedas e troque por prêmios reais.",
                     link: "",
                     data: "Hoje"
                 }
-            ]);
+            ]));
 
+            const [ranking, setRanking] = useState(() => StorageManager.load("ranking", [
+                { nome: "Você", moedas: 1000, atual: true },
+                { nome: "Lucas_Mestre", moedas: 2450, atual: false },
+                { nome: "Ana_Palpites", moedas: 1900, atual: false },
+                { nome: "Beto_Gamer", moedas: 1500, atual: false },
+                { nome: "Julia_Mendes", moedas: 800, atual: false }
+            ]));
 
-            /* =========================================================
-               RANKING
-            ========================================================= */
-
-            const [ranking, setRanking] = useState([
-                {
-                    nome: "Você",
-                    moedas: 1000,
-                    atual: true
-                },
-                {
-                    nome: "Lucas_Mestre",
-                    moedas: 2450,
-                    atual: false
-                },
-                {
-                    nome: "Ana_Palpites",
-                    moedas: 1900,
-                    atual: false
-                },
-                {
-                    nome: "Beto_Gamer",
-                    moedas: 1500,
-                    atual: false
-                },
-                {
-                    nome: "Julia_Mendes",
-                    moedas: 800,
-                    atual: false
-                }
-            ]);
-
-
-            /* =========================================================
-               ATUALIZAR RANKING
-            ========================================================= */
-
-            useEffect(() => {
-
-                setRanking(prev =>
-                    prev
-                        .map(usuario =>
-                            usuario.atual
-                                ? {
-                                      ...usuario,
-                                      moedas: saldo
-                                  }
-                                : usuario
-                        )
-                        .sort((a, b) => b.moedas - a.moedas)
-                );
-
-            }, [saldo]);
-
-
-            /* =========================================================
-               FUNÇÃO - REGISTRAR PALPITE
-            ========================================================= */
-
-            const registrarPalpite = (idPalpite, opcaoEscolhida) => {
-
-                const palpite = palpites.find(
-                    p => p.id === idPalpite
-                );
-
-                if (!palpite) return;
-
-                if (historicoPalpites.includes(idPalpite)) {
-
-                    alert(
-                        "Você já computou seu palpite nesta pergunta!"
-                    );
-
-                    return;
-                }
-
-                if (saldo < palpite.custo) {
-
-                    alert(
-                        "Saldo de moedas insuficiente! Cumpra missões para ganhar mais."
-                    );
-
-                    return;
-                }
-
-                setSaldo(prev => prev - palpite.custo);
-
-                setHistoricoPalpites(prev => [
-                    ...prev,
-                    idPalpite
-                ]);
-
-                alert(
-                    `Palpite computado na opção "${opcaoEscolhida}" com sucesso!`
-                );
-            };
-
-
-            /* =========================================================
-               FUNÇÃO - ABRIR LINK CPA
-            ========================================================= */
-
-            const processarLinkCPA = (idMissao, link) => {
-
-                window.open(link, "_blank");
-
-                setClicouNoLinkCPA(prev => ({
-                    ...prev,
-                    [idMissao]: true
-                }));
-            };
-
-
-            /* =========================================================
-               FUNÇÃO - VALIDAR MISSÃO
-            ========================================================= */
-
-            const validarMissao = (idMissao, recompensa) => {
-
-                if (!clicouNoLinkCPA[idMissao]) {
-
-                    alert(
-                        "Por favor, clique primeiro no botão de cumprir a missão para abrir o link do parceiro!"
-                    );
-
-                    return;
-                }
-
-                if (missoesConcluidas.includes(idMissao)) {
-
-                    alert(
-                        "Você já resgatou as moedas desta missão!"
-                    );
-
-                    return;
-                }
-
-                setSaldo(prev => prev + recompensa);
-
-                setMissoesConcluidas(prev => [
-                    ...prev,
-                    idMissao
-                ]);
-
-                alert(
-                    `Sucesso! +${recompensa} moedas adicionadas à sua carteira.`
-                );
-            };
-
-
-            /* =========================================================
-               ESTADOS DO ADMIN
-            ========================================================= */
-
+            // Admin States
             const [novaPergunta, setNovaPergunta] = useState("");
             const [novaOpcaoA, setNovaOpcaoA] = useState("");
             const [novaOpcaoB, setNovaOpcaoB] = useState("");
@@ -278,966 +200,672 @@
             const [novoConteudoAviso, setNovoConteudoAviso] = useState("");
             const [novoLinkAviso, setNovoLinkAviso] = useState("");
 
+            const [notificacao, setNotificacao] = useState({ msg: "", tipo: "", show: false });
+            const notificacaoTimeout = useRef(null);
 
-            /* =========================================================
-               ADMIN - CRIAR PALPITE
-            ========================================================= */
+            // ========================================================
+            // SALVAR DADOS
+            // ========================================================
+            useEffect(() => {
+                StorageManager.save("saldo", saldo);
+            }, [saldo]);
 
-            const criarPalpiteAdmin = (e) => {
+            useEffect(() => {
+                StorageManager.save("historico", historicoPalpites);
+            }, [historicoPalpites]);
 
+            useEffect(() => {
+                StorageManager.save("missoes_concluidas", missoesConcluidas);
+            }, [missoesConcluidas]);
+
+            useEffect(() => {
+                StorageManager.save("links_clicados", clicouNoLinkCPA);
+            }, [clicouNoLinkCPA]);
+
+            useEffect(() => {
+                StorageManager.save("palpites", palpites);
+            }, [palpites]);
+
+            useEffect(() => {
+                StorageManager.save("missoes", missoes);
+            }, [missoes]);
+
+            useEffect(() => {
+                StorageManager.save("avisos", avisos);
+            }, [avisos]);
+
+            useEffect(() => {
+                StorageManager.save("ranking", ranking);
+            }, [ranking]);
+
+            // ========================================================
+            // ATUALIZAR RANKING
+            // ========================================================
+            useEffect(() => {
+                setRanking(prev =>
+                    prev
+                        .map(usuario =>
+                            usuario.atual
+                                ? { ...usuario, moedas: saldo }
+                                : usuario
+                        )
+                        .sort((a, b) => b.moedas - a.moedas)
+                );
+            }, [saldo]);
+
+            // ========================================================
+            // NOTIFICAÇÃO
+            // ========================================================
+            const mostrarNotificacao = useCallback((msg, tipo = "sucesso") => {
+                if (notificacaoTimeout.current) {
+                    clearTimeout(notificacaoTimeout.current);
+                }
+                setNotificacao({ msg, tipo, show: true });
+                notificacaoTimeout.current = setTimeout(() => {
+                    setNotificacao(prev => ({ ...prev, show: false }));
+                }, 3000);
+            }, []);
+
+            // ========================================================
+            // REGISTRAR PALPITE
+            // ========================================================
+            const registrarPalpite = useCallback((idPalpite, opcaoEscolhida) => {
+                const palpite = palpites.find(p => p.id === idPalpite);
+                
+                if (!palpite) return;
+
+                if (historicoPalpites.includes(idPalpite)) {
+                    mostrarNotificacao("Você já palpitou nesta pergunta!", "aviso");
+                    return;
+                }
+
+                if (saldo < palpite.custo) {
+                    mostrarNotificacao("Saldo insuficiente! Complete missões.", "erro");
+                    return;
+                }
+
+                setSaldo(prev => prev - palpite.custo);
+                setHistoricoPalpites(prev => [...prev, idPalpite]);
+                mostrarNotificacao(`✓ Palpite em "${opcaoEscolhida}" registrado!`, "sucesso");
+            }, [palpites, historicoPalpites, saldo, mostrarNotificacao]);
+
+            // ========================================================
+            // PROCESSAR LINK CPA
+            // ========================================================
+            const processarLinkCPA = useCallback((idMissao, link) => {
+                window.open(link, "_blank");
+                setClicouNoLinkCPA(prev => ({
+                    ...prev,
+                    [idMissao]: true
+                }));
+                mostrarNotificacao("Link aberto! Agora clique em Resgatar.", "info");
+            }, [mostrarNotificacao]);
+
+            // ========================================================
+            // VALIDAR MISSÃO
+            // ========================================================
+            const validarMissao = useCallback((idMissao, recompensa) => {
+                if (!clicouNoLinkCPA[idMissao]) {
+                    mostrarNotificacao("Clique em 'Cumprir' primeiro!", "aviso");
+                    return;
+                }
+
+                if (missoesConcluidas.includes(idMissao)) {
+                    mostrarNotificacao("Você já resgatou esta missão!", "aviso");
+                    return;
+                }
+
+                setSaldo(prev => prev + recompensa);
+                setMissoesConcluidas(prev => [...prev, idMissao]);
+                mostrarNotificacao(`✓ +${recompensa} moedas adicionadas!`, "sucesso");
+            }, [clicouNoLinkCPA, missoesConcluidas, mostrarNotificacao]);
+
+            // ========================================================
+            // CRIAR PALPITE (ADMIN)
+            // ========================================================
+            const criarPalpiteAdmin = useCallback((e) => {
                 e.preventDefault();
+
+                if (!novaPergunta.trim() || !novaOpcaoA.trim() || !novaOpcaoB.trim()) {
+                    mostrarNotificacao("Preencha todos os campos!", "erro");
+                    return;
+                }
 
                 const novo = {
                     id: Date.now(),
                     pergunta: novaPergunta,
                     opcaoA: novaOpcaoA,
                     opcaoB: novaOpcaoB,
-                    custo: parseInt(novoCusto),
+                    custo: Math.max(1, parseInt(novoCusto) || 100),
                     status: "Ativo",
                     vencedor: null
                 };
 
-                setPalpites(prev => [
-                    novo,
-                    ...prev
-                ]);
-
+                setPalpites(prev => [novo, ...prev]);
                 setNovaPergunta("");
                 setNovaOpcaoA("");
                 setNovaOpcaoB("");
                 setNovoCusto(100);
+                mostrarNotificacao("✓ Novo palpite publicado!", "sucesso");
+            }, [novaPergunta, novaOpcaoA, novaOpcaoB, novoCusto, mostrarNotificacao]);
 
-                alert(
-                    "Novo palpite cadastrado e publicado no Mural!"
-                );
-            };
-
-
-            /* =========================================================
-               ADMIN - ENCERRAR PALPITE
-            ========================================================= */
-
-            const encerrarPalpiteAdmin = (
-                idPalpite,
-                vencedor
-            ) => {
-
-                const palpite = palpites.find(
-                    p => p.id === idPalpite
-                );
-
+            // ========================================================
+            // ENCERRAR PALPITE (ADMIN)
+            // ========================================================
+            const encerrarPalpiteAdmin = useCallback((idPalpite, vencedor) => {
+                const palpite = palpites.find(p => p.id === idPalpite);
+                
                 if (!palpite) return;
 
                 setPalpites(prev =>
                     prev.map(p =>
                         p.id === idPalpite
-                            ? {
-                                  ...p,
-                                  status: "Encerrado",
-                                  vencedor
-                              }
+                            ? { ...p, status: "Encerrado", vencedor }
                             : p
                     )
                 );
 
-                if (
-                    historicoPalpites.includes(idPalpite)
-                ) {
-
-                    setSaldo(
-                        prev =>
-                            prev +
-                            palpite.custo * 2
-                    );
-
-                    alert(
-                        "Palpite encerrado! Como você participou do evento, recebeu o prêmio de vitória."
-                    );
-
+                if (historicoPalpites.includes(idPalpite)) {
+                    setSaldo(prev => prev + palpite.custo * 2);
+                    mostrarNotificacao("✓ Você ganhou! +Prêmio recebido!", "sucesso");
                 } else {
-
-                    alert(
-                        `Palpite encerrado com sucesso! Vencedor definido como Opção ${vencedor}.`
-                    );
+                    mostrarNotificacao(`✓ Palpite encerrado! Vencedor: ${vencedor}`, "info");
                 }
-            };
+            }, [palpites, historicoPalpites, mostrarNotificacao]);
 
-
-            /* =========================================================
-               ADMIN - CRIAR MISSÃO
-            ========================================================= */
-
-            const criarMissaoAdmin = (e) => {
-
+            // ========================================================
+            // CRIAR MISSÃO (ADMIN)
+            // ========================================================
+            const criarMissaoAdmin = useCallback((e) => {
                 e.preventDefault();
+
+                if (!novoTituloMissao.trim() || !novaDescMissao.trim() || !novoLinkCPA.trim()) {
+                    mostrarNotificacao("Preencha todos os campos!", "erro");
+                    return;
+                }
 
                 const nova = {
                     id: Date.now(),
                     titulo: novoTituloMissao,
                     descricao: novaDescMissao,
                     link: novoLinkCPA,
-                    recompensa: parseInt(novaRecompensa),
+                    recompensa: Math.max(1, parseInt(novaRecompensa) || 300),
                     status: "Ativo"
                 };
 
-                setMissoes(prev => [
-                    nova,
-                    ...prev
-                ]);
-
+                setMissoes(prev => [nova, ...prev]);
                 setNovoTituloMissao("");
                 setNovaDescMissao("");
                 setNovoLinkCPA("");
                 setNovaRecompensa(300);
+                mostrarNotificacao("✓ Link de afiliado cadastrado!", "sucesso");
+            }, [novoTituloMissao, novaDescMissao, novoLinkCPA, novaRecompensa, mostrarNotificacao]);
 
-                alert(
-                    "Novo link de afiliado cadastrado!"
-                );
-            };
-
-
-            /* =========================================================
-               ADMIN - CRIAR AVISO
-            ========================================================= */
-
-            const dispararAvisoAdmin = (e) => {
-
+            // ========================================================
+            // CRIAR AVISO (ADMIN)
+            // ========================================================
+            const dispararAvisoAdmin = useCallback((e) => {
                 e.preventDefault();
+
+                if (!novoTituloAviso.trim() || !novoConteudoAviso.trim()) {
+                    mostrarNotificacao("Preencha os campos obrigatórios!", "erro");
+                    return;
+                }
 
                 const novo = {
                     id: Date.now(),
                     titulo: novoTituloAviso,
                     conteudo: novoConteudoAviso,
                     link: novoLinkAviso,
-                    data: "Agora mesmo"
+                    data: "Agora"
                 };
 
-                setAvisos(prev => [
-                    novo,
-                    ...prev
-                ]);
-
+                setAvisos(prev => [novo, ...prev]);
                 setNovoTituloAviso("");
                 setNovoConteudoAviso("");
                 setNovoLinkAviso("");
+                mostrarNotificacao("✓ Mensagem enviada para todos!", "sucesso");
+            }, [novoTituloAviso, novoConteudoAviso, novoLinkAviso, mostrarNotificacao]);
 
-                alert(
-                    "Mensagem enviada para a central de avisos!"
-                );
-            };
-
-
-            /* =========================================================
-               INTERFACE
-            ========================================================= */
-
+            // ========================================================
+            // RENDERIZAR
+            // ========================================================
             return (
+                <div className="app-container bg-gray-950">
 
-                <div className="min-h-screen flex flex-col max-w-md mx-auto bg-gray-900 border-x border-gray-800 shadow-2xl pb-24">
+                    {/* NOTIFICAÇÃO */}
+                    {notificacao.show && (
+                        <div className={`fixed top-0 left-0 right-0 z-[9999] p-4 text-center font-bold animate-pulse ${
+                            notificacao.tipo === "sucesso" ? "bg-emerald-600" :
+                            notificacao.tipo === "erro" ? "bg-red-600" :
+                            notificacao.tipo === "aviso" ? "bg-amber-600" :
+                            "bg-blue-600"
+                        }`}>
+                            {notificacao.msg}
+                        </div>
+                    )}
 
-
-                    {/* =================================================
-                       CABEÇALHO
-                    ================================================= */}
-
-                    <header className="p-4 bg-gray-950 border-b border-gray-800 sticky top-0 z-50 flex justify-between items-center">
-
+                    {/* CABEÇALHO */}
+                    <header className="sticky top-0 z-40 p-4 bg-gray-950 border-b border-gray-800 flex justify-between items-center">
                         <div className="flex items-center gap-2">
-
                             <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
-
-                            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-purple-400 to-emerald-400 bg-clip-text text-transparent">
-
+                            <h1 className="text-lg font-black tracking-tight bg-gradient-to-r from-purple-400 to-emerald-400 bg-clip-text text-transparent">
                                 PalpitePremiado
-
                             </h1>
-
                         </div>
 
-
-                        <div className="bg-gray-900 border border-gray-700 rounded-full px-3 py-1 flex items-center gap-1.5">
-
-                            <span className="text-amber-400">
-                                🌟
-                            </span>
-
+                        <div className="bg-gray-900 border border-gray-700 rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                            <span className="text-amber-400 text-sm">🌟</span>
                             <span className="text-sm font-black text-amber-300">
-
                                 {saldo}
-
-                                <span className="text-xs font-normal text-gray-400 ml-1">
-                                    Moedas
-                                </span>
-
+                                <span className="text-xs font-normal text-gray-400 ml-1">pts</span>
                             </span>
-
                         </div>
-
                     </header>
 
+                    {/* CONTEÚDO PRINCIPAL */}
+                    <main className="flex-1 p-4 overflow-y-auto">
 
-                    {/* =================================================
-                       CONTEÚDO
-                    ================================================= */}
-
-                    <main className="flex-1 p-4">
-
-
-                        {/* =================================================
-                           HOME
-                        ================================================= */}
-
+                        {/* HOME - MURAL */}
                         {abaAtiva === "home" && (
-
                             <section>
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-black mb-1">Mural de Palpites</h2>
+                                    <p className="text-sm text-gray-400">Use suas moedas e concorra a prêmios</p>
+                                </div>
 
-                                <h2 className="text-2xl font-black mb-1">
-                                    Mural de Palpites
-                                </h2>
-
-                                <p className="text-sm text-gray-400 mb-5">
-                                    Use suas moedas nos palpites e concorra a recompensas.
-                                </p>
-
-
-                                <div className="space-y-4">
-
-                                    {palpites.map(p => (
-
-                                        <div
-                                            key={p.id}
-                                            className={`p-4 rounded-2xl border transition-all ${
-                                                p.status === "Encerrado"
-                                                    ? "bg-gray-950/40 border-gray-800 opacity-60"
-                                                    : "bg-gray-950 border-gray-800 shadow-lg"
-                                            }`}
-                                        >
-
-                                            <div className="flex justify-between items-center mb-3">
-
-                                                <span
-                                                    className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${
+                                {palpites.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <p className="text-gray-400">Nenhum palpite disponível</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 pb-32">
+                                        {palpites.map(p => (
+                                            <div
+                                                key={p.id}
+                                                className={`p-4 rounded-2xl border transition-all ${
+                                                    p.status === "Encerrado"
+                                                        ? "bg-gray-950/40 border-gray-800 opacity-60"
+                                                        : "bg-gray-950 border-gray-800 shadow-lg"
+                                                }`}
+                                            >
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${
                                                         p.status === "Ativo"
                                                             ? "bg-purple-950 text-purple-400 border border-purple-800"
                                                             : "bg-gray-800 text-gray-400"
-                                                    }`}
-                                                >
-                                                    {p.status}
-                                                </span>
-
-                                                <span className="text-xs text-amber-400 font-bold">
-                                                    Custo: {p.custo} moedas
-                                                </span>
-
-                                            </div>
-
-
-                                            <h3 className="font-bold text-white mb-4">
-                                                {p.pergunta}
-                                            </h3>
-
-
-                                            {p.status === "Ativo" ? (
-
-                                                <div className="grid grid-cols-2 gap-2">
-
-                                                    <button
-                                                        onClick={() =>
-                                                            registrarPalpite(
-                                                                p.id,
-                                                                p.opcaoA
-                                                            )
-                                                        }
-                                                        disabled={historicoPalpites.includes(p.id)}
-                                                        className="py-2.5 px-3 bg-gray-900 border border-gray-700 hover:border-purple-500 rounded-xl font-semibold text-sm text-purple-300 disabled:opacity-50"
-                                                    >
-                                                        {p.opcaoA}
-                                                    </button>
-
-
-                                                    <button
-                                                        onClick={() =>
-                                                            registrarPalpite(
-                                                                p.id,
-                                                                p.opcaoB
-                                                            )
-                                                        }
-                                                        disabled={historicoPalpites.includes(p.id)}
-                                                        className="py-2.5 px-3 bg-gray-900 border border-gray-700 hover:border-emerald-500 rounded-xl font-semibold text-sm text-emerald-300 disabled:opacity-50"
-                                                    >
-                                                        {p.opcaoB}
-                                                    </button>
-
+                                                    }`}>
+                                                        {p.status}
+                                                    </span>
+                                                    <span className="text-xs text-amber-400 font-bold">
+                                                        💰 {p.custo} pts
+                                                    </span>
                                                 </div>
 
-                                            ) : (
-
-                                                <div className="text-sm text-gray-400">
-
-                                                    Opção vencedora:
-
-                                                    <strong className="text-white ml-1">
-                                                        {p.vencedor === "A"
-                                                            ? p.opcaoA
-                                                            : p.opcaoB}
-                                                    </strong>
-
-                                                </div>
-
-                                            )}
-
-                                        </div>
-
-                                    ))}
-
-                                </div>
-
-                            </section>
-
-                        )}
-
-
-                        {/* =================================================
-                           MISSÕES
-                        ================================================= */}
-
-                        {abaAtiva === "missoes" && (
-
-                            <section>
-
-                                <h2 className="text-2xl font-black mb-1">
-                                    Ganha Moedas
-                                </h2>
-
-                                <p className="text-sm text-gray-400 mb-5">
-                                    Cumpra as missões parceiras para aumentar seu saldo.
-                                </p>
-
-
-                                <div className="space-y-4">
-
-                                    {missoes.map(m => (
-
-                                        <div
-                                            key={m.id}
-                                            className="bg-gray-950 border border-gray-800 rounded-2xl p-4"
-                                        >
-
-                                            <div className="flex justify-between gap-3 mb-2">
-
-                                                <h3 className="font-bold">
-                                                    {m.titulo}
+                                                <h3 className="font-bold text-white mb-4 text-sm">
+                                                    {p.pergunta}
                                                 </h3>
 
-                                                <span className="text-emerald-400 font-black text-sm whitespace-nowrap">
-                                                    +{m.recompensa}
-                                                </span>
-
-                                            </div>
-
-
-                                            <p className="text-sm text-gray-400 mb-4">
-                                                {m.descricao}
-                                            </p>
-
-
-                                            <div className="grid grid-cols-2 gap-2">
-
-                                                <button
-                                                    onClick={() =>
-                                                        processarLinkCPA(
-                                                            m.id,
-                                                            m.link
-                                                        )
-                                                    }
-                                                    disabled={missoesConcluidas.includes(m.id)}
-                                                    className="py-2 px-3 bg-gray-900 border border-gray-700 text-xs font-bold rounded-xl text-gray-300 disabled:opacity-50"
-                                                >
-                                                    1. Cumprir
-                                                </button>
-
-
-                                                <button
-                                                    onClick={() =>
-                                                        validarMissao(
-                                                            m.id,
-                                                            m.recompensa
-                                                        )
-                                                    }
-                                                    disabled={missoesConcluidas.includes(m.id)}
-                                                    className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-xs font-black rounded-xl text-white disabled:bg-gray-800 disabled:text-gray-500"
-                                                >
-                                                    2. Resgatar
-                                                </button>
-
-                                            </div>
-
-                                        </div>
-
-                                    ))}
-
-                                </div>
-
-                            </section>
-
-                        )}
-
-
-                        {/* =================================================
-                           RANKING
-                        ================================================= */}
-
-                        {abaAtiva === "ranking" && (
-
-                            <section>
-
-                                <h2 className="text-2xl font-black mb-1">
-                                    Ranking Global
-                                </h2>
-
-                                <p className="text-sm text-gray-400 mb-5">
-                                    Os maiores pontuadores do mês ganham prêmios.
-                                </p>
-
-
-                                <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden">
-
-                                    {ranking.map((u, index) => (
-
-                                        <div
-                                            key={index}
-                                            className={`p-4 flex justify-between items-center border-b border-gray-900 last:border-0 ${
-                                                u.atual
-                                                    ? "bg-purple-950/40"
-                                                    : ""
-                                            }`}
-                                        >
-
-                                            <div className="flex items-center gap-3">
-
-                                                <span className="font-mono font-black text-sm w-5 text-center">
-
-                                                    {index + 1}
-
-                                                </span>
-
-                                                <span className="text-sm font-semibold">
-
-                                                    {u.nome}
-
-                                                    {u.atual && (
-                                                        <span className="text-purple-400 ml-1">
-                                                            (Você)
-                                                        </span>
-                                                    )}
-
-                                                </span>
-
-                                            </div>
-
-
-                                            <span className="text-amber-400 font-black">
-                                                {u.moedas} pts
-                                            </span>
-
-                                        </div>
-
-                                    ))}
-
-                                </div>
-
-                            </section>
-
-                        )}
-
-
-                        {/* =================================================
-                           AVISOS
-                        ================================================= */}
-
-                        {abaAtiva === "avisos" && (
-
-                            <section>
-
-                                <h2 className="text-2xl font-black mb-1">
-                                    Notificações
-                                </h2>
-
-                                <p className="text-sm text-gray-400 mb-5">
-                                    Avisos importantes enviados pelo administrador.
-                                </p>
-
-
-                                <div className="space-y-3">
-
-                                    {avisos.map(a => (
-
-                                        <div
-                                            key={a.id}
-                                            className="bg-gray-950 border border-gray-800 rounded-2xl p-4"
-                                        >
-
-                                            <span className="text-xs text-gray-500">
-                                                {a.data}
-                                            </span>
-
-                                            <h3 className="font-bold mt-1 mb-2">
-                                                {a.titulo}
-                                            </h3>
-
-                                            <p className="text-sm text-gray-400">
-                                                {a.conteudo}
-                                            </p>
-
-
-                                            {a.link && (
-
-                                                <a
-                                                    href={a.link}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-block mt-3 text-sm text-purple-400 font-bold"
-                                                >
-                                                    Clique aqui para ver mais →
-                                                </a>
-
-                                            )}
-
-                                        </div>
-
-                                    ))}
-
-                                </div>
-
-                            </section>
-
-                        )}
-
-
-                        {/* =================================================
-                           ADMIN
-                        ================================================= */}
-
-                        {abaAtiva === "admin" && (
-
-                            <section>
-
-                                <h2 className="text-2xl font-black mb-1">
-                                    Painel Administrativo
-                                </h2>
-
-                                <p className="text-sm text-gray-400 mb-6">
-                                    Controle do aplicativo.
-                                </p>
-
-
-                                {/* NOVO PALPITE */}
-
-                                <form
-                                    onSubmit={criarPalpiteAdmin}
-                                    className="bg-gray-950 border border-gray-800 rounded-2xl p-4 mb-5"
-                                >
-
-                                    <h3 className="font-black mb-4">
-                                        1. Lançar Novo Palpite
-                                    </h3>
-
-
-                                    <div className="space-y-3">
-
-                                        <input
-                                            type="text"
-                                            placeholder="Qual a pergunta do palpite?"
-                                            value={novaPergunta}
-                                            onChange={e =>
-                                                setNovaPergunta(e.target.value)
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <input
-                                            type="text"
-                                            placeholder="Opção A"
-                                            value={novaOpcaoA}
-                                            onChange={e =>
-                                                setNovaOpcaoA(e.target.value)
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <input
-                                            type="text"
-                                            placeholder="Opção B"
-                                            value={novaOpcaoB}
-                                            onChange={e =>
-                                                setNovaOpcaoB(e.target.value)
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            placeholder="Custo"
-                                            value={novoCusto}
-                                            onChange={e =>
-                                                setNovoCusto(e.target.value)
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <button
-                                            type="submit"
-                                            className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-black"
-                                        >
-                                            Publicar Palpite
-                                        </button>
-
-                                    </div>
-
-                                </form>
-
-
-                                {/* ENCERRAR PALPITES */}
-
-                                <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 mb-5">
-
-                                    <h3 className="font-black mb-4">
-                                        Finalizar Eventos
-                                    </h3>
-
-
-                                    {palpites.filter(
-                                        p => p.status === "Ativo"
-                                    ).length === 0 ? (
-
-                                        <p className="text-sm text-gray-500">
-                                            Nenhum palpite ativo.
-                                        </p>
-
-                                    ) : (
-
-                                        <div className="space-y-4">
-
-                                            {palpites
-                                                .filter(
-                                                    p =>
-                                                        p.status === "Ativo"
-                                                )
-                                                .map(p => (
-
-                                                    <div
-                                                        key={p.id}
-                                                        className="border-b border-gray-800 pb-4 last:border-0"
-                                                    >
-
-                                                        <p className="text-sm font-bold mb-3">
-                                                            {p.pergunta}
-                                                        </p>
-
-
-                                                        <div className="grid grid-cols-1 gap-2">
-
-                                                            <button
-                                                                onClick={() =>
-                                                                    encerrarPalpiteAdmin(
-                                                                        p.id,
-                                                                        "A"
-                                                                    )
-                                                                }
-                                                                className="py-2 px-3 bg-purple-950 text-purple-300 font-bold text-xs rounded-lg border border-purple-800"
-                                                            >
-                                                                Definir {p.opcaoA} como vencedor
-                                                            </button>
-
-
-                                                            <button
-                                                                onClick={() =>
-                                                                    encerrarPalpiteAdmin(
-                                                                        p.id,
-                                                                        "B"
-                                                                    )
-                                                                }
-                                                                className="py-2 px-3 bg-emerald-950 text-emerald-300 font-bold text-xs rounded-lg border border-emerald-800"
-                                                            >
-                                                                Definir {p.opcaoB} como vencedor
-                                                            </button>
-
-                                                        </div>
-
+                                                {p.status === "Ativo" ? (
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <button
+                                                            onClick={() => registrarPalpite(p.id, p.opcaoA)}
+                                                            disabled={historicoPalpites.includes(p.id)}
+                                                            className="py-2.5 px-3 bg-gray-900 border border-gray-700 hover:border-purple-500 hover:bg-purple-950/20 rounded-xl font-semibold text-xs text-purple-300 disabled:opacity-40 transition-all active:scale-95"
+                                                        >
+                                                            {p.opcaoA}
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() => registrarPalpite(p.id, p.opcaoB)}
+                                                            disabled={historicoPalpites.includes(p.id)}
+                                                            className="py-2.5 px-3 bg-gray-900 border border-gray-700 hover:border-emerald-500 hover:bg-emerald-950/20 rounded-xl font-semibold text-xs text-emerald-300 disabled:opacity-40 transition-all active:scale-95"
+                                                        >
+                                                            {p.opcaoB}
+                                                        </button>
                                                     </div>
+                                                ) : (
+                                                    <div className="text-sm text-gray-400 bg-gray-900/50 p-2 rounded-lg">
+                                                        ✓ Vencedor:
+                                                        <strong className="text-emerald-400 ml-1">
+                                                            {p.vencedor === "A" ? p.opcaoA : p.opcaoB}
+                                                        </strong>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
 
-                                                ))}
-
-                                        </div>
-
-                                    )}
-
+                        {/* MISSÕES */}
+                        {abaAtiva === "missoes" && (
+                            <section>
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-black mb-1">Ganha Moedas</h2>
+                                    <p className="text-sm text-gray-400">Complete missões e aumente seu saldo</p>
                                 </div>
 
-
-                                {/* NOVA MISSÃO */}
-
-                                <form
-                                    onSubmit={criarMissaoAdmin}
-                                    className="bg-gray-950 border border-gray-800 rounded-2xl p-4 mb-5"
-                                >
-
-                                    <h3 className="font-black mb-4">
-                                        2. Cadastrar Link de Afiliado
-                                    </h3>
-
-
-                                    <div className="space-y-3">
-
-                                        <input
-                                            type="text"
-                                            placeholder="Título da missão"
-                                            value={novoTituloMissao}
-                                            onChange={e =>
-                                                setNovoTituloMissao(
-                                                    e.target.value
-                                                )
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <textarea
-                                            placeholder="Instruções para o usuário"
-                                            value={novaDescMissao}
-                                            onChange={e =>
-                                                setNovaDescMissao(
-                                                    e.target.value
-                                                )
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm h-20 resize-none"
-                                        />
-
-
-                                        <input
-                                            type="url"
-                                            placeholder="Link de afiliado"
-                                            value={novoLinkCPA}
-                                            onChange={e =>
-                                                setNovoLinkCPA(
-                                                    e.target.value
-                                                )
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            placeholder="Recompensa"
-                                            value={novaRecompensa}
-                                            onChange={e =>
-                                                setNovaRecompensa(
-                                                    e.target.value
-                                                )
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <button
-                                            type="submit"
-                                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-black"
-                                        >
-                                            Publicar Link CPA
-                                        </button>
-
+                                {missoes.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <p className="text-gray-400">Nenhuma missão disponível</p>
                                     </div>
+                                ) : (
+                                    <div className="space-y-4 pb-32">
+                                        {missoes.map(m => (
+                                            <div key={m.id} className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+                                                <div className="flex justify-between gap-3 mb-2">
+                                                    <h3 className="font-bold text-sm flex-1">{m.titulo}</h3>
+                                                    <span className="text-emerald-400 font-black text-sm whitespace-nowrap">
+                                                        +{m.recompensa}
+                                                    </span>
+                                                </div>
 
-                                </form>
+                                                <p className="text-xs text-gray-400 mb-4">{m.descricao}</p>
 
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <button
+                                                        onClick={() => processarLinkCPA(m.id, m.link)}
+                                                        disabled={missoesConcluidas.includes(m.id)}
+                                                        className="py-2 px-3 bg-gray-900 border border-gray-700 text-xs font-bold rounded-xl text-gray-300 hover:bg-gray-800 disabled:opacity-40 transition-all active:scale-95"
+                                                    >
+                                                        1. Cumprir
+                                                    </button>
 
-                                {/* NOVO AVISO */}
-
-                                <form
-                                    onSubmit={dispararAvisoAdmin}
-                                    className="bg-gray-950 border border-gray-800 rounded-2xl p-4"
-                                >
-
-                                    <h3 className="font-black mb-4">
-                                        3. Disparar Mensagem / Aviso
-                                    </h3>
-
-
-                                    <div className="space-y-3">
-
-                                        <input
-                                            type="text"
-                                            placeholder="Título da notificação"
-                                            value={novoTituloAviso}
-                                            onChange={e =>
-                                                setNovoTituloAviso(
-                                                    e.target.value
-                                                )
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <textarea
-                                            placeholder="Texto do comunicado..."
-                                            value={novoConteudoAviso}
-                                            onChange={e =>
-                                                setNovoConteudoAviso(
-                                                    e.target.value
-                                                )
-                                            }
-                                            required
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm h-20 resize-none"
-                                        />
-
-
-                                        <input
-                                            type="url"
-                                            placeholder="Link opcional"
-                                            value={novoLinkAviso}
-                                            onChange={e =>
-                                                setNovoLinkAviso(
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm"
-                                        />
-
-
-                                        <button
-                                            type="submit"
-                                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-black"
-                                        >
-                                            Enviar para Todos
-                                        </button>
-
+                                                    <button
+                                                        onClick={() => validarMissao(m.id, m.recompensa)}
+                                                        disabled={missoesConcluidas.includes(m.id)}
+                                                        className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-xs font-black rounded-xl text-white disabled:bg-gray-800 disabled:text-gray-500 transition-all active:scale-95"
+                                                    >
+                                                        2. Resgatar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-
-                                </form>
-
+                                )}
                             </section>
+                        )}
 
+                        {/* RANKING */}
+                        {abaAtiva === "ranking" && (
+                            <section>
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-black mb-1">🏆 Ranking Global</h2>
+                                    <p className="text-sm text-gray-400">Os tops ganham prêmios todo mês</p>
+                                </div>
+
+                                <div className="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden pb-32">
+                                    {ranking.length === 0 ? (
+                                        <div className="text-center py-12 text-gray-400">Carregando ranking...</div>
+                                    ) : (
+                                        ranking.map((u, index) => (
+                                            <div
+                                                key={index}
+                                                className={`p-4 flex justify-between items-center border-b border-gray-900 last:border-0 ${
+                                                    u.atual ? "bg-purple-950/30" : ""
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-3 flex-1">
+                                                    <span className="font-mono font-black text-lg w-8 text-center">
+                                                        {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
+                                                    </span>
+                                                    <span className="text-sm font-semibold">
+                                                        {u.nome}
+                                                        {u.atual && <span className="text-purple-400 ml-1">(Você)</span>}
+                                                    </span>
+                                                </div>
+                                                <span className="text-amber-400 font-black text-sm">{u.moedas}</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* AVISOS */}
+                        {abaAtiva === "avisos" && (
+                            <section>
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-black mb-1">🔔 Notificações</h2>
+                                    <p className="text-sm text-gray-400">Mensagens importantes do admin</p>
+                                </div>
+
+                                {avisos.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <p className="text-gray-400">Sem notificações no momento</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3 pb-32">
+                                        {avisos.map(a => (
+                                            <div key={a.id} className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+                                                <span className="text-xs text-gray-500">{a.data}</span>
+                                                <h3 className="font-bold mt-1 mb-2 text-sm">{a.titulo}</h3>
+                                                <p className="text-xs text-gray-400 mb-2">{a.conteudo}</p>
+                                                {a.link && (
+                                                    <a
+                                                        href={a.link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-block mt-2 text-xs text-purple-400 font-bold hover:text-purple-300"
+                                                    >
+                                                        Saiba mais →
+                                                    </a>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        {/* ADMIN */}
+                        {abaAtiva === "admin" && (
+                            <section>
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-black mb-1">⚙️ Painel Admin</h2>
+                                    <p className="text-sm text-gray-400">Controle do aplicativo</p>
+                                </div>
+
+                                <div className="space-y-4 pb-32">
+
+                                    {/* NOVO PALPITE */}
+                                    <form onSubmit={criarPalpiteAdmin} className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+                                        <h3 className="font-black mb-4 text-sm">📊 Lançar Palpite</h3>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                placeholder="Pergunta"
+                                                value={novaPergunta}
+                                                onChange={e => setNovaPergunta(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Opção A"
+                                                value={novaOpcaoA}
+                                                onChange={e => setNovaOpcaoA(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Opção B"
+                                                value={novaOpcaoB}
+                                                onChange={e => setNovaOpcaoB(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                placeholder="Custo"
+                                                value={novoCusto}
+                                                onChange={e => setNovoCusto(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="w-full py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-black text-sm active:scale-95 transition-all"
+                                            >
+                                                Publicar
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    {/* ENCERRAR */}
+                                    <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+                                        <h3 className="font-black mb-4 text-sm">🏁 Finalizar Palpites</h3>
+                                        {palpites.filter(p => p.status === "Ativo").length === 0 ? (
+                                            <p className="text-xs text-gray-500">Nenhum palpite ativo</p>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {palpites.filter(p => p.status === "Ativo").map(p => (
+                                                    <div key={p.id} className="border-b border-gray-800 pb-4 last:border-0">
+                                                        <p className="text-xs font-bold mb-3">{p.pergunta}</p>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <button
+                                                                onClick={() => encerrarPalpiteAdmin(p.id, "A")}
+                                                                className="py-2 px-2 bg-purple-950 text-purple-300 font-bold text-[10px] rounded-lg border border-purple-800 active:scale-95 transition-all"
+                                                            >
+                                                                ✓ Opção A
+                                                            </button>
+                                                            <button
+                                                                onClick={() => encerrarPalpiteAdmin(p.id, "B")}
+                                                                className="py-2 px-2 bg-emerald-950 text-emerald-300 font-bold text-[10px] rounded-lg border border-emerald-800 active:scale-95 transition-all"
+                                                            >
+                                                                ✓ Opção B
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* NOVA MISSÃO */}
+                                    <form onSubmit={criarMissaoAdmin} className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+                                        <h3 className="font-black mb-4 text-sm">💼 Missão CPA</h3>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                placeholder="Título"
+                                                value={novoTituloMissao}
+                                                onChange={e => setNovoTituloMissao(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500"
+                                            />
+                                            <textarea
+                                                placeholder="Descrição"
+                                                value={novaDescMissao}
+                                                onChange={e => setNovaDescMissao(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500 h-16 resize-none"
+                                            />
+                                            <input
+                                                type="url"
+                                                placeholder="Link"
+                                                value={novoLinkCPA}
+                                                onChange={e => setNovoLinkCPA(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500"
+                                            />
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                placeholder="Recompensa"
+                                                value={novaRecompensa}
+                                                onChange={e => setNovaRecompensa(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-black text-sm active:scale-95 transition-all"
+                                            >
+                                                Publicar
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    {/* NOVO AVISO */}
+                                    <form onSubmit={dispararAvisoAdmin} className="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+                                        <h3 className="font-black mb-4 text-sm">📢 Mensagem</h3>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                placeholder="Título"
+                                                value={novoTituloAviso}
+                                                onChange={e => setNovoTituloAviso(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500"
+                                            />
+                                            <textarea
+                                                placeholder="Conteúdo"
+                                                value={novoConteudoAviso}
+                                                onChange={e => setNovoConteudoAviso(e.target.value)}
+                                                required
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500 h-16 resize-none"
+                                            />
+                                            <input
+                                                type="url"
+                                                placeholder="Link (opcional)"
+                                                value={novoLinkAviso}
+                                                onChange={e => setNovoLinkAviso(e.target.value)}
+                                                className="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-xs text-gray-100 placeholder-gray-500"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-black text-sm active:scale-95 transition-all"
+                                            >
+                                                Enviar
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                </div>
+                            </section>
                         )}
 
                     </main>
 
-
-                    {/* =================================================
-                       NAVEGAÇÃO INFERIOR
-                    ================================================= */}
-
-                    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-950/95 backdrop-blur border-t border-gray-800 z-50">
-
-                        <div className="grid grid-cols-5 h-20">
-
-                            <button
-                                onClick={() => setAbaAtiva("home")}
-                                className={`flex flex-col items-center justify-center gap-1 ${
-                                    abaAtiva === "home"
-                                        ? "text-purple-400"
-                                        : "text-gray-500"
-                                }`}
-                            >
-                                <span className="text-xl">🎯</span>
-                                <span className="text-[10px] font-bold">
-                                    Palpites
-                                </span>
-                            </button>
-
-
-                            <button
-                                onClick={() => setAbaAtiva("missoes")}
-                                className={`flex flex-col items-center justify-center gap-1 ${
-                                    abaAtiva === "missoes"
-                                        ? "text-emerald-400"
-                                        : "text-gray-500"
-                                }`}
-                            >
-                                <span className="text-xl">💸</span>
-                                <span className="text-[10px] font-bold">
-                                    Missões
-                                </span>
-                            </button>
-
-
-                            <button
-                                onClick={() => setAbaAtiva("ranking")}
-                                className={`flex flex-col items-center justify-center gap-1 ${
-                                    abaAtiva === "ranking"
-                                        ? "text-amber-400"
-                                        : "text-gray-500"
-                                }`}
-                            >
-                                <span className="text-xl">🏆</span>
-                                <span className="text-[10px] font-bold">
-                                    Ranking
-                                </span>
-                            </button>
-
-
-                            <button
-                                onClick={() => setAbaAtiva("avisos")}
-                                className={`flex flex-col items-center justify-center gap-1 ${
-                                    abaAtiva === "avisos"
-                                        ? "text-blue-400"
-                                        : "text-gray-500"
-                                }`}
-                            >
-                                <span className="text-xl">🔔</span>
-                                <span className="text-[10px] font-bold">
-                                    Avisos
-                                </span>
-                            </button>
-
-
-                            <button
-                                onClick={() => setAbaAtiva("admin")}
-                                className={`flex flex-col items-center justify-center gap-1 ${
-                                    abaAtiva === "admin"
-                                        ? "text-red-400"
-                                        : "text-gray-500"
-                                }`}
-                            >
-                                <span className="text-xl">⚙️</span>
-                                <span className="text-[10px] font-bold">
-                                    Painel
-                                </span>
-                            </button>
-
+                    {/* NAVEGAÇÃO INFERIOR */}
+                    <nav className="fixed bottom-0 left-0 right-0 bg-gray-950/95 backdrop-blur border-t border-gray-800 z-40">
+                        <div className="grid grid-cols-5 gap-1 p-2 max-w-lg mx-auto">
+                            {[
+                                { id: "home", icon: "🎯", label: "Palpites", color: "text-purple-400" },
+                                { id: "missoes", icon: "💸", label: "Missões", color: "text-emerald-400" },
+                                { id: "ranking", icon: "🏆", label: "Ranking", color: "text-amber-400" },
+                                { id: "avisos", icon: "🔔", label: "Avisos", color: "text-blue-400" },
+                                { id: "admin", icon: "⚙️", label: "Painel", color: "text-red-400" }
+                            ].map(aba => (
+                                <button
+                                    key={aba.id}
+                                    onClick={() => setAbaAtiva(aba.id)}
+                                    className={`flex flex-col items-center justify-center py-3 rounded-xl transition-all ${
+                                        abaAtiva === aba.id
+                                            ? `${aba.color} bg-gray-800/50`
+                                            : "text-gray-500"
+                                    }`}
+                                >
+                                    <span className="text-2xl mb-1">{aba.icon}</span>
+                                    <span className="text-[10px] font-bold">{aba.label}</span>
+                                </button>
+                            ))}
                         </div>
-
                     </nav>
 
                 </div>
             );
         }
 
-
-        /* =============================================================
-           INICIALIZAÇÃO DO REACT
-        ============================================================= */
-
-        const root =
-            ReactDOM.createRoot(
-                document.getElementById("root")
-            );
-
+        // ========================================================
+        // INICIALIZAR
+        // ========================================================
+        const root = ReactDOM.createRoot(document.getElementById("root"));
         root.render(<App />);
 
     </script>
